@@ -163,6 +163,7 @@ public class Client implements MqttCallback {
 
         News myNews = new News(this.id, myTitle, myContent, myTopic);
         newsList.addNews(myNews);
+        publishNews(myNews);
     }
 
     public Future<Void> publishNews(News news) {
