@@ -12,7 +12,7 @@ public class News {
 
     public News( String authorID, String title, String content, String topic) {
         this.id = authorID;
-        this.id = this.id +":"+ contor;       // id-l va avea forma "idAutor:123"
+        this.id = this.id +":"+ contor;       // id-ul va avea forma "idAutor:123"
         contor++;
         this.title = title;
         this.content = content;

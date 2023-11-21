@@ -15,16 +15,16 @@ import java.util.concurrent.*;
 import static org.eclipse.paho.client.mqttv3.MqttClient.generateClientId;
 
 public class Client implements MqttCallback {
-    private String broker;
-    private String id;      // Client id
-    private int qos;        // Quality of Service (QoS)
+    private final String broker;
+    private final String id;      // Client id
+    private final int qos;        // Quality of Service (QoS)
     private MqttClient mqttClient; // obiect pentru comunicarea cu broker-ul
     private boolean reconnecting = false;
-    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     public Client() {
-        this.broker = "tcp://localhost:1883";
+        this.broker = "tcp://10.53.52.101:1883";
         this.id = generateClientId();
-        this.qos = 3;
+        this.qos = 2;
     }
 
 
@@ -113,7 +113,7 @@ public class Client implements MqttCallback {
         News news = deserializeNews(payload);
 
         // Afișăm știrea pe ecran
-        System.out.println("Received News:");
+        System.out.println("\nReceived News:");
         System.out.println("ID: " + news.getId());
         System.out.println("Title: " + news.getTitle());
         System.out.println("Content: " + news.getContent());
@@ -133,6 +133,7 @@ public class Client implements MqttCallback {
     /**
      * Functie care scrie in fisierul de log-uri un anumit mesaj
      * @param mesaj Mesajul care va fi scris in fisier-ul de log-uri
+     * In fata mesajului se va scrie dateTime-ul in care s-a scris acel mesaj
      */
     public void writeToLogFile(String mesaj) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("./src/main/java/org/example/logs.txt", true))) {
@@ -147,6 +148,13 @@ public class Client implements MqttCallback {
             //System.err.println("Eroare la scrierea în fișier: " + e.getMessage());
         }
     }
+
+    /**
+     * Functie care adauga o stire (obiect News) intr-o lista de stiri (obiect NewsList)
+     * Componentele stirii vor fi citite de la tastatura
+     * La sfarsit noua stire va fi publicata (trimisa catre broker)
+     * @param newsList lista de stiri in care se va adauga stirea
+     */
     public void addNewsMenu(NewsList newsList){
         Scanner scanner = new Scanner(System.in);
         System.out.print("Introdu titlul stirii: ");
@@ -162,71 +170,78 @@ public class Client implements MqttCallback {
         // se va verifica daca topicul exista, in caz contrar se va adauga acest topic in lista
 
         News myNews = new News(this.id, myTitle, myContent, myTopic);
-        newsList.addNews(myNews);
-        publishNews(myNews);
+        newsList.addNews(myNews);   // adaugarea stirii in lista
+        publishNews(myNews);        // publicare stire
     }
 
+
+    /**
+     * Functie care publica o stire
+     * @param news stirea care va fi publicata
+     * @return
+     */
     public Future<Void> publishNews(News news) {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        String topic = news.getTopic();
+        String topic = news.getTopic(); // topicul stirii
         String payload = news.toJson(); // Convertim obiectul News la format JSON
 
         MqttMessage message = new MqttMessage(payload.getBytes());
-        message.setQos(2);
+        message.setQos(this.qos);
+
 
         try {
-            mqttClient.publish(topic, message);
+            mqttClient.publish(topic, message); // publicare
+            System.out.println("Stire publicata cu succes");
             future.complete(null);
         } catch (MqttException e) {
+            System.out.println("Stirea nu a putut fi publicata");
             future.completeExceptionally(e);
         }
-
         return future;
     }
+
+
     public void startUserInputThread(Client c, Topics topics, NewsList newsList) {
         executorService.submit(() -> {
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 System.out.println(
-                        "1. Adauga un nou topic\n" +
-                                "2. Sterge un topic\n" +
-                                "3. Afiseaza toate topic-urile\n" +
-                                "4. Abonare la un topic\n" +
-                                "5. Adauga o stire\n" +
-                                "6. Vizualizare lista stiri\n" +
-                                "7. Vizualizare detalii stire\n" +
+                                "1. Afiseaza toate topic-urile\n" +
+                                "2. Abonare la un topic\n" +
+                                "3. Adauga o stire\n" +
+                                "4. Vizualizare lista stiri\n" +
+                                "5. Vizualizare detalii stire\n" +
                                 "20. Exit\n"
                 );
                 System.out.print("Optiunea mea este: ");
                 int choice = scanner.nextInt();
                 switch (choice) {
+
                     case 1:
-                        System.out.println("Se va implementa");
-                        break;
-                    case 2:
-                        System.out.println("Se va implementa");
-                        break;
-                    case 3:
                         topics.printAllTopics();
                         break;
-                    case 4:
+                    case 2:
                         System.out.print("Introdu numele topicului la care doresti sa te abonezi(ex:crypto):");
                         String newTopic = scanner.next();
-                        topics.addNewTopic(newTopic);
+                        if(topics.existsTopic(newTopic))
+                            System.out.print("Abonare cu succes\n");
+                        else{
+                            System.out.print("Nu exista acest topic\n");
+                        }
                         c.subscribe(newTopic);
                         break;
-                    case 5:
+                    case 3:
                         addNewsMenu(newsList);
                         break;
 
-                    case 6:
+                    case 4:
                         System.out.println("Lista de stiri:");
                         newsList.printAllNews();
                         break;
 
-                    case 7:
+                    case 5:
                         System.out.print("Introdu indexul stirii:");
                         String myStringIndex = scanner.next();
                         int index = Integer.parseInt(myStringIndex);
@@ -252,9 +267,15 @@ public class Client implements MqttCallback {
     public static void main(String[] args) throws MqttException {
         Client c = new Client();
         Topics topics = new Topics();
-        NewsList newsList = new NewsList();
+        topics.addNewTopic("test");
+        topics.addNewTopic("crypto");
+        topics.addNewTopic("ai");
+        topics.addNewTopic("blockchain");
+        topics.addNewTopic("vremea");
 
+        NewsList newsList = new NewsList();
+        //c.writeToLogFile("Acesta este un mesaj de test");
         c.connectToBroker();
-        c.startUserInputThread(c, topics,newsList);
+        c.startUserInputThread(c, topics, newsList);
     }
 }
