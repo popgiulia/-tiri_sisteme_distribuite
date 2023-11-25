@@ -40,5 +40,4 @@ public class Topics {
     public void addNewTopic(String newTopic) {
         topicsList.add(newTopic);
     }
-
 }

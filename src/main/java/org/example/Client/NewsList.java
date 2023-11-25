@@ -23,8 +23,8 @@ public class NewsList {
 
     public void printAllNews() {
         int i = 1;
-        for (News news : newsList) {
-            System.out.println(i+". " + "["+news.getId() + "]. " + news.getTitle()+ " " + news.getTopic());
+        for (News news : newsList) {// aici la afisarea tilului s-ar putea afisa doar un numar maxim de caractere (vezi titluri lungi)
+            System.out.println(i+". " + "["+news.getId() + "]. " +  ", Titlu:" +news.getTitle()+ " " + ", Topic:" + news.getTopic());
             i++;
         }
     }
@@ -33,10 +33,11 @@ public class NewsList {
         for (News news : newsList) {
             if(i == index-1){
                 System.out.println("############################################");
-                System.out.println("Index: " + index+". " + "["+news.getId() + "]. " + news.getTitle()+ " " + news.getTopic());
+                System.out.println("Index: " + index);
                 System.out.println("ID:["+news.getId() + "]");
+                System.out.println("Titlu: "+news.getTitle());
                 System.out.println("Topic: " + news.getTopic());
-                System.out.println("Continut: " + news.getContent());
+                System.out.println("Continut: " + news.getContent());// de facut: sa nu se afiseze mai mult de x caractere pe un rand
                 System.out.println("############################################");
                 break;
             }

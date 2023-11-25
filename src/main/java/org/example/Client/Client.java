@@ -8,26 +8,117 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
 import static org.eclipse.paho.client.mqttv3.MqttClient.generateClientId;
 
 public class Client implements MqttCallback {
-    private final String broker;
+    private String broker;
+    private List<Broker> brokerList;
     private final String id;      // Client id
     private final int qos;        // Quality of Service (QoS)
     private MqttClient mqttClient; // obiect pentru comunicarea cu broker-ul
-    private boolean reconnecting = false;
+    private boolean reconnecting;
+    private boolean connected;
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private NewsList newsList;
+
     public Client() {
-        this.broker = "tcp://10.53.52.101:1883";
+        brokerList = new ArrayList<>();
+        Broker broker1 = new Broker("tcp://localhost:1883", false);
+        Broker broker2 = new Broker("tcp://localhost:1884", false);
+        brokerList.add(broker1);
+        brokerList.add(broker2);
+
+
         this.id = generateClientId();
         this.qos = 2;
+        newsList = new NewsList();
+        reconnecting = false;
+        connected = false;
     }
 
+    public void connectToBroker3() {
+        Future<?> connectFuture = executorService.submit(() -> {
+            while (true) {
+                // incercam sa ne conetcam la unul din brokeri
+                for (Broker myBroker : brokerList) {
+                    try {
+                        mqttClient = new MqttClient(myBroker.getIpBroker(), id, null);
+                        mqttClient.setCallback(this);
+                        MqttConnectOptions connOpts = new MqttConnectOptions();
+                        connOpts.setCleanSession(true);
 
+                        // Conectare la broker
+                        System.out.println("Conectare la broker : " + myBroker.getIpBroker());
+                        mqttClient.connect(connOpts);
+                        System.out.println("ID-ul acestui client este: " + id);
+                        myBroker.setRunning(true);
+                        this.broker = myBroker.getIpBroker();
+                        connected = true;
+                        return; // iesim din bucla for atunci cand ne-am conectat la broker-ul curent
+                    } catch (MqttException e) {
+                        connected = false;
+                        myBroker.setRunning(false);
+                        System.out.println("Conectarea la broker-ul " + myBroker.getIpBroker() + " a eșuat");
+                        System.out.println("Se incearca conectarea la un alt broker");
+                    }
+                }
+                // Așteaptăm 5 secunde, dupa care incercam o noua runda de conectare
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+        try {
+            connectFuture.get(); // Așteaptă finalizarea firului de execuție
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // nu o mai folosim
+    public void connectToBroker2() {
+
+        try {
+            mqttClient = new MqttClient(brokerList.get(0).getIpBroker(), id, null);
+            mqttClient.setCallback(this);
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+
+            // Conectare la broker
+            System.out.println("Conectare la broker 1: " + broker);
+            mqttClient.connect(connOpts);
+            System.out.println("ID-ul acestui client este: " + id);
+
+        } catch (MqttException e) {
+            System.out.println("Conectarea la broker-ul 1 a eșuat");
+            try {
+                mqttClient = new MqttClient(brokerList.get(1).getIpBroker(), id, null);
+                mqttClient.setCallback(this);
+                MqttConnectOptions connOpts = new MqttConnectOptions();
+                connOpts.setCleanSession(true);
+
+                // Conectare la broker
+                System.out.println("Conectare la broker 2: " + broker);
+                mqttClient.connect(connOpts);
+                System.out.println("ID-ul acestui client este: " + id);
+            } catch (MqttSecurityException ex) {
+                throw new RuntimeException(ex);
+            } catch (MqttException ex) {
+                throw new RuntimeException(ex);
+            }
+        }
+    }
+
+    // nu o mai folosim
     public void connectToBroker() {
         Future<Void> connectFuture = executorService.submit(() -> {
             while (true) {
@@ -71,41 +162,56 @@ public class Client implements MqttCallback {
 
     @Override
     public void connectionLost(Throwable cause) {
+        connected = false;
+        System.out.println("\nConexiune pierdută cu broker-ul\n");
+        startReconnectThread();
 
-        System.out.println("Conexiune pierdută cu broker-ul\n");
-        startReconnectThread();  // Activează firul de execuție pentru reconectare
     }
 
+    // nu merge bine functia
     private void startReconnectThread() {
-        Thread reconnectThread = new Thread(() -> {
-            while (true) {
-                if (!mqttClient.isConnected() && !reconnecting) {
-                    try {
-                        System.out.println("Încercare reconectare la broker...");
-                        reconnecting = true;
-                        connectToBroker();
-                        System.out.println("Reconectat cu succes la broker.");
-                        reconnecting = false;
-                    } catch (Exception e) {
-                        System.out.println("Reconectarea a eșuat. Așteptăm 5 secunde înainte de a încerca din nou.");
+
+        Thread connectThread = new Thread(() -> {
+            if (!connected) {
+                while (true) {
+                    // incercam sa ne conetcam la unul din brokeri
+                    for (Broker myBroker : brokerList) {
                         try {
-                            Thread.sleep(5000); // Așteaptă 5 secunde înainte de a încerca din nou
-                        } catch (InterruptedException ex) {
-                            ex.printStackTrace();
+                            mqttClient = new MqttClient(myBroker.getIpBroker(), id, null);
+                            mqttClient.setCallback(this);
+                            MqttConnectOptions connOpts = new MqttConnectOptions();
+                            connOpts.setCleanSession(true);
+
+                            // Conectare la broker
+                            System.out.println("Conectare la broker : " + myBroker.getIpBroker());
+                            mqttClient.connect(connOpts);
+                            System.out.println("ID-ul acestui client este: " + id);
+                            System.out.println("Connectare cu SUCCES!!!");
+                            myBroker.setRunning(true);
+                            this.broker = myBroker.getIpBroker();
+                            connected = true;
+                            return;
+                        } catch (MqttException e) {
+                            myBroker.setRunning(false);
+                            connected = false;
+                            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                            System.out.println("Conectarea la broker-ul " + myBroker.getIpBroker() + " a eșuat");
+                            System.out.println("Se incearca conectarea la un alt broker\n");
                         }
                     }
-                }
-
-                try {
-                    Thread.sleep(1000); // Așteaptă 1 secundă între încercările de reconectare
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    // Așteaptăm 5 secunde, dupa care incercam o noua runda de conectare
+                    try {
+                        Thread.sleep(5000);
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
                 }
             }
         });
 
-        reconnectThread.start();
+        connectThread.start();
     }
+
     public void messageArrived(String topic, MqttMessage message) {
         String payload = new String(message.getPayload());
 
@@ -119,11 +225,16 @@ public class Client implements MqttCallback {
         System.out.println("Content: " + news.getContent());
         System.out.println("Topic: " + news.getTopic());
         System.out.println();
+
+        newsList.addNews(news);
+
     }
+
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
         // Aici puteți implementa acțiuni suplimentare după livrarea unui mesaj
     }
+
     private News deserializeNews(String json) {
         Gson gson = new GsonBuilder().create();
         return gson.fromJson(json, News.class);
@@ -132,8 +243,9 @@ public class Client implements MqttCallback {
 
     /**
      * Functie care scrie in fisierul de log-uri un anumit mesaj
+     *
      * @param mesaj Mesajul care va fi scris in fisier-ul de log-uri
-     * In fata mesajului se va scrie dateTime-ul in care s-a scris acel mesaj
+     *              In fata mesajului se va scrie dateTime-ul in care s-a scris acel mesaj
      */
     public void writeToLogFile(String mesaj) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("./src/main/java/org/example/logs.txt", true))) {
@@ -153,30 +265,28 @@ public class Client implements MqttCallback {
      * Functie care adauga o stire (obiect News) intr-o lista de stiri (obiect NewsList)
      * Componentele stirii vor fi citite de la tastatura
      * La sfarsit noua stire va fi publicata (trimisa catre broker)
-     * @param newsList lista de stiri in care se va adauga stirea
      */
-    public void addNewsMenu(NewsList newsList){
+    public void addNewsMenu() {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Introdu titlul stirii: ");
         String myTitle = scanner.nextLine();
 
         System.out.print("Introdu continutul stirii: ");
-        String myContent= scanner.nextLine();
+        String myContent = scanner.nextLine();
 
         System.out.print("Introdu topicul stirii: ");
-        String myTopic= scanner.nextLine();
+        String myTopic = scanner.nextLine();
 
-        // de facut urmatorul lucru:
-        // se va verifica daca topicul exista, in caz contrar se va adauga acest topic in lista
 
         News myNews = new News(this.id, myTitle, myContent, myTopic);
-        newsList.addNews(myNews);   // adaugarea stirii in lista
-        publishNews(myNews);        // publicare stire
+        this.newsList.addNews(myNews);   // adaugarea stirii in lista
+        publishNews(myNews);             // publicare stire
     }
 
 
     /**
      * Functie care publica o stire
+     *
      * @param news stirea care va fi publicata
      * @return
      */
@@ -188,8 +298,6 @@ public class Client implements MqttCallback {
 
         MqttMessage message = new MqttMessage(payload.getBytes());
         message.setQos(this.qos);
-
-
         try {
             mqttClient.publish(topic, message); // publicare
             System.out.println("Stire publicata cu succes");
@@ -202,13 +310,13 @@ public class Client implements MqttCallback {
     }
 
 
-    public void startUserInputThread(Client c, Topics topics, NewsList newsList) {
+    public void startUserInputThread(Client c, Topics topics) {
         executorService.submit(() -> {
             Scanner scanner = new Scanner(System.in);
             while (true) {
                 System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
                 System.out.println(
-                                "1. Afiseaza toate topic-urile\n" +
+                        "1. Afiseaza toate topic-urile\n" +
                                 "2. Abonare la un topic\n" +
                                 "3. Adauga o stire\n" +
                                 "4. Vizualizare lista stiri\n" +
@@ -225,20 +333,21 @@ public class Client implements MqttCallback {
                     case 2:
                         System.out.print("Introdu numele topicului la care doresti sa te abonezi(ex:crypto):");
                         String newTopic = scanner.next();
-                        if(topics.existsTopic(newTopic))
+                        if (topics.existsTopic(newTopic)) {
                             System.out.print("Abonare cu succes\n");
-                        else{
+                            c.subscribe(newTopic);
+                        } else {
                             System.out.print("Nu exista acest topic\n");
                         }
-                        c.subscribe(newTopic);
                         break;
+
                     case 3:
-                        addNewsMenu(newsList);
+                        addNewsMenu();
                         break;
 
                     case 4:
                         System.out.println("Lista de stiri:");
-                        newsList.printAllNews();
+                        this.newsList.printAllNews();
                         break;
 
                     case 5:
@@ -273,9 +382,9 @@ public class Client implements MqttCallback {
         topics.addNewTopic("blockchain");
         topics.addNewTopic("vremea");
 
-        NewsList newsList = new NewsList();
+
         //c.writeToLogFile("Acesta este un mesaj de test");
-        c.connectToBroker();
-        c.startUserInputThread(c, topics, newsList);
+        c.connectToBroker3();
+        c.startUserInputThread(c, topics);
     }
 }
