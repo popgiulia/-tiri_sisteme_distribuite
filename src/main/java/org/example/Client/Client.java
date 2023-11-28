@@ -27,10 +27,13 @@ public class Client implements MqttCallback {
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private NewsList newsList;
 
+    private List<String> subscribedTopics = new ArrayList<>();
+
+
     public Client() {
         brokerList = new ArrayList<>();
-        Broker broker1 = new Broker("tcp://localhost:1883", false);
-        Broker broker2 = new Broker("tcp://localhost:1884", false);
+        Broker broker1 = new Broker("tcp://192.168.37.200:1883", false);
+        Broker broker2 = new Broker("tcp://192.168.37.200:1884", false);
         brokerList.add(broker1);
         brokerList.add(broker2);
 
@@ -158,7 +161,15 @@ public class Client implements MqttCallback {
 
     public void subscribe(String topic) throws MqttException {
         this.mqttClient.subscribe(topic);
+        subscribedTopics.add(topic);
     }
+
+    private void renewSubscriptions() throws MqttException {
+        for (String topic : subscribedTopics) {
+            mqttClient.subscribe(topic);
+        }
+    }
+
 
     @Override
     public void connectionLost(Throwable cause) {
@@ -170,11 +181,10 @@ public class Client implements MqttCallback {
 
     // nu merge bine functia
     private void startReconnectThread() {
-
         Thread connectThread = new Thread(() -> {
             if (!connected) {
                 while (true) {
-                    // incercam sa ne conetcam la unul din brokeri
+                    // încercăm să ne conectăm la unul din brokeri
                     for (Broker myBroker : brokerList) {
                         try {
                             mqttClient = new MqttClient(myBroker.getIpBroker(), id, null);
@@ -183,23 +193,26 @@ public class Client implements MqttCallback {
                             connOpts.setCleanSession(true);
 
                             // Conectare la broker
-                            System.out.println("Conectare la broker : " + myBroker.getIpBroker());
+                            System.out.println("Conectare la broker: " + myBroker.getIpBroker());
                             mqttClient.connect(connOpts);
                             System.out.println("ID-ul acestui client este: " + id);
-                            System.out.println("Connectare cu SUCCES!!!");
+                            System.out.println("Conectare cu SUCCES!!!");
                             myBroker.setRunning(true);
                             this.broker = myBroker.getIpBroker();
                             connected = true;
+
+                            // Reînnoiește abonările pe noul broker
+                            renewSubscriptions();
+
                             return;
                         } catch (MqttException e) {
                             myBroker.setRunning(false);
                             connected = false;
-                            System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
                             System.out.println("Conectarea la broker-ul " + myBroker.getIpBroker() + " a eșuat");
-                            System.out.println("Se incearca conectarea la un alt broker\n");
+                            System.out.println("Se încearcă conectarea la un alt broker\n");
                         }
                     }
-                    // Așteaptăm 5 secunde, dupa care incercam o noua runda de conectare
+                    // Așteptăm 5 secunde, după care încercăm o nouă rundă de conectare
                     try {
                         Thread.sleep(5000);
                     } catch (InterruptedException ex) {
@@ -211,6 +224,7 @@ public class Client implements MqttCallback {
 
         connectThread.start();
     }
+
 
     public void messageArrived(String topic, MqttMessage message) {
         String payload = new String(message.getPayload());
