@@ -200,7 +200,7 @@ public class Client implements MqttCallback {
                             myBroker.setRunning(true);
                             this.broker = myBroker.getIpBroker();
                             connected = true;
-
+//
                             // Reînnoiește abonările pe noul broker
                             renewSubscriptions();
 
