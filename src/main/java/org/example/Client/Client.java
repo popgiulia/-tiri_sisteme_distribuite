@@ -86,74 +86,7 @@ public class Client implements MqttCallback {
             e.printStackTrace();
         }
     }
-
-    // nu o mai folosim
-    public void connectToBroker2() {
-
-        try {
-            mqttClient = new MqttClient(brokerList.get(0).getIpBroker(), id, null);
-            mqttClient.setCallback(this);
-            MqttConnectOptions connOpts = new MqttConnectOptions();
-            connOpts.setCleanSession(true);
-
-            // Conectare la broker
-            System.out.println("Conectare la broker 1: " + broker);
-            mqttClient.connect(connOpts);
-            System.out.println("ID-ul acestui client este: " + id);
-
-        } catch (MqttException e) {
-            System.out.println("Conectarea la broker-ul 1 a eșuat");
-            try {
-                mqttClient = new MqttClient(brokerList.get(1).getIpBroker(), id, null);
-                mqttClient.setCallback(this);
-                MqttConnectOptions connOpts = new MqttConnectOptions();
-                connOpts.setCleanSession(true);
-
-                // Conectare la broker
-                System.out.println("Conectare la broker 2: " + broker);
-                mqttClient.connect(connOpts);
-                System.out.println("ID-ul acestui client este: " + id);
-            } catch (MqttSecurityException ex) {
-                throw new RuntimeException(ex);
-            } catch (MqttException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-    }
-
-    // nu o mai folosim
-    public void connectToBroker() {
-        Future<Void> connectFuture = executorService.submit(() -> {
-            while (true) {
-                try {
-                    mqttClient = new MqttClient(broker, id, null);
-                    mqttClient.setCallback(this);
-                    MqttConnectOptions connOpts = new MqttConnectOptions();
-                    connOpts.setCleanSession(true);
-
-                    // Conectare la broker
-                    System.out.println("Conectare la broker: " + broker);
-                    mqttClient.connect(connOpts);
-                    System.out.println("ID-ul acestui client este: " + id);
-                    return null; // Ieșim din firul de execuție dacă conectarea a reușit
-                } catch (MqttException e) {
-                    System.out.println("Conectarea a eșuat. Așteptăm 5 secunde înainte de a încerca din nou.");
-                    try {
-                        Thread.sleep(5000); // Așteaptă 5 secunde înainte de a încerca din nou
-                    } catch (InterruptedException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            }
-        });
-
-        try {
-            connectFuture.get(); // Așteaptă finalizarea firului de execuție
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-        }
-    }
-
+    // se apeleaza atunci cand scriem in consola 20
     public void disconnectFromBroker() throws MqttException {
         mqttClient.disconnect();
         System.out.println("Deconectat de la broker\n");
@@ -179,7 +112,6 @@ public class Client implements MqttCallback {
 
     }
 
-    // nu merge bine functia
     private void startReconnectThread() {
         Thread connectThread = new Thread(() -> {
             if (!connected) {
@@ -200,7 +132,7 @@ public class Client implements MqttCallback {
                             myBroker.setRunning(true);
                             this.broker = myBroker.getIpBroker();
                             connected = true;
-//
+
                             // Reînnoiește abonările pe noul broker
                             renewSubscriptions();
 
@@ -300,7 +232,6 @@ public class Client implements MqttCallback {
 
     /**
      * Functie care publica o stire
-     *
      * @param news stirea care va fi publicata
      * @return
      */
