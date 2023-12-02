@@ -259,7 +259,7 @@ public class Client implements MqttCallback {
         for (News news : newsList) {
             try {
                 publishNews(news).get();  // Așteaptă finalizarea publicării știrii
-                Thread.sleep(30);  // Poți ajusta perioada de așteptare între știri, dacă este necesar
+                Thread.sleep(20);  // Se poate ajusta perioada de așteptare între știri, dacă este necesar
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
@@ -285,7 +285,7 @@ public class Client implements MqttCallback {
         message.setQos(this.qos);
         try {
             mqttClient.publish(topic, message); // publicare
-
+           // processNews(payload);   daca vrei sa iti afiseze si tie stirea cand o trimiti chiar daca nu esti abonat
             System.out.println("Stire publicata cu succes " + i);
             i++;
             future.complete(null);
