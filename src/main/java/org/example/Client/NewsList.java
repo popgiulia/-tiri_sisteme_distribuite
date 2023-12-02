@@ -1,6 +1,7 @@
 package org.example.Client;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 
 public class NewsList {
     private ArrayList<News> newsList;
@@ -11,6 +12,8 @@ public class NewsList {
 
     public void addNews(News myNews) {
         newsList.add(myNews);
+
+        //newsList.sort(Comparator.comparing(News::getId));
     }
 
     public void getAllNewsByTopic(String topic) {

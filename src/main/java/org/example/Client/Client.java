@@ -8,10 +8,7 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.*;
 
 import static org.eclipse.paho.client.mqttv3.MqttClient.generateClientId;
@@ -27,13 +24,18 @@ public class Client implements MqttCallback {
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private NewsList newsList;
 
+    private Queue<News> orderedNewsQueue = new LinkedList<>();
+
+    private final ExecutorService executorServiceStiri = Executors.newCachedThreadPool();
+
     private List<String> subscribedTopics = new ArrayList<>();
 
+    public static int i = 0;
 
     public Client() {
         brokerList = new ArrayList<>();
-        Broker broker1 = new Broker("tcp://192.168.37.200:1883", false);
-        Broker broker2 = new Broker("tcp://192.168.37.200:1884", false);
+        Broker broker1 = new Broker("tcp://localhost:1883", false);
+        Broker broker2 = new Broker("tcp://localhost:1884", false);
         brokerList.add(broker1);
         brokerList.add(broker2);
 
@@ -91,6 +93,8 @@ public class Client implements MqttCallback {
         mqttClient.disconnect();
         System.out.println("Deconectat de la broker\n");
     }
+
+
 
     public void subscribe(String topic) throws MqttException {
         this.mqttClient.subscribe(topic);
@@ -157,10 +161,15 @@ public class Client implements MqttCallback {
         connectThread.start();
     }
 
-
+    @Override
     public void messageArrived(String topic, MqttMessage message) {
         String payload = new String(message.getPayload());
 
+        //Procesează știrea într-un alt fir de execuție
+        processNews(payload);
+    }
+
+    public synchronized void processNews(String payload) {
         // Convertim JSON-ul în obiectul News
         News news = deserializeNews(payload);
 
@@ -173,8 +182,10 @@ public class Client implements MqttCallback {
         System.out.println();
 
         newsList.addNews(news);
-
     }
+
+
+
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
@@ -229,6 +240,35 @@ public class Client implements MqttCallback {
         publishNews(myNews);             // publicare stire
     }
 
+    public void sendMultipleNews() throws InterruptedException {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Introdu topicul stirii: ");
+        String myTopic = scanner.nextLine();
+
+        List<News> newsList = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < 1000; i++) {
+            // Creează o știre fictivă pentru a o trimite
+            News news = new News(this.id, "Titlu " + i, "Conținut " + i, myTopic);
+            newsList.add(news);
+        }
+
+        // Sortează știrile după idCounter
+        newsList.sort(Comparator.comparing(news -> Integer.parseInt(news.getId().split(":")[1])));
+
+        for (News news : newsList) {
+            try {
+                publishNews(news).get();  // Așteaptă finalizarea publicării știrii
+                Thread.sleep(30);  // Poți ajusta perioada de așteptare între știri, dacă este necesar
+            } catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println("S-au trimis 1000 de știri pe topicul " + myTopic);
+    }
+
+
 
     /**
      * Functie care publica o stire
@@ -245,7 +285,9 @@ public class Client implements MqttCallback {
         message.setQos(this.qos);
         try {
             mqttClient.publish(topic, message); // publicare
-            System.out.println("Stire publicata cu succes");
+
+            System.out.println("Stire publicata cu succes " + i);
+            i++;
             future.complete(null);
         } catch (MqttException e) {
             System.out.println("Stirea nu a putut fi publicata");
@@ -266,6 +308,7 @@ public class Client implements MqttCallback {
                                 "3. Adauga o stire\n" +
                                 "4. Vizualizare lista stiri\n" +
                                 "5. Vizualizare detalii stire\n" +
+                                "6. Adauga 1000 de stiri\n" +
                                 "20. Exit\n"
                 );
                 System.out.print("Optiunea mea este: ");
@@ -300,6 +343,10 @@ public class Client implements MqttCallback {
                         String myStringIndex = scanner.next();
                         int index = Integer.parseInt(myStringIndex);
                         newsList.printNewsWithIndex(index);
+                        break;
+
+                    case 6:
+                        sendMultipleNews();
                         break;
 
                     case 20:
