@@ -4,19 +4,15 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.eclipse.paho.client.mqttv3.*;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.*;
 
-import static org.eclipse.paho.client.mqttv3.MqttClient.generateClientId;
-
 public class Client implements MqttCallback {
     private String broker;
     private List<Broker> brokerList;
-    private final String id;      // Client id
+    private String id;      // Client id
     private final int qos;        // Quality of Service (QoS)
     private MqttClient mqttClient; // obiect pentru comunicarea cu broker-ul
     private boolean reconnecting;
@@ -40,14 +36,44 @@ public class Client implements MqttCallback {
         brokerList.add(broker2);
 
 
-        this.id = generateClientId();
+
         this.qos = 2;
         newsList = new NewsList();
         reconnecting = false;
         connected = false;
     }
+    public void setId(String newId){
+        this.id = newId;
+    }
+
+    /**
+     * Functie pentru generarea unui id
+     * @param caleFisier calea catre fisierul in care se va scrie id-ul generat
+     * @return id-ul generat
+     */
+    public String generareID(String caleFisier) {
+        // atentie la id negativ
+        String timestamp = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format(new Date());
+        Random random = new Random();
+        int randomNumber = random.nextInt(Integer.MAX_VALUE);
+
+        //System.out.println(timestamp + "   " + randomNumber);
+        // Se face hash la cele două variabile
+        int rezultatHash = Math.abs(Objects.hash(timestamp, randomNumber));
+        // se scrie in fisier id-ul
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(caleFisier, true))) {
+            System.out.println("Hash pentru variabilele " + timestamp + " și " + randomNumber + ": " + rezultatHash);
+            writer.write(String.valueOf(rezultatHash));
+            return String.valueOf(rezultatHash);
+            //System.out.println("Mesajul a fost scris cu succes în fișier.");
+        } catch (IOException e) {
+            System.err.println("Eroare la scrierea în fișier a id-ului: " + e.getMessage());
+            return String.valueOf(0);
+        }
+    }
 
     public void connectToBroker3() {
+
         Future<?> connectFuture = executorService.submit(() -> {
             while (true) {
                 // incercam sa ne conetcam la unul din brokeri
@@ -65,10 +91,15 @@ public class Client implements MqttCallback {
                         myBroker.setRunning(true);
                         this.broker = myBroker.getIpBroker();
                         connected = true;
+                        this.writeToLogFile("Conectare cu SUCCES la broker-ul " + myBroker.getIpBroker());
+
+                        // abonare automata pentru fiecare client
+                        this.subscribe("stergere");
                         return; // iesim din bucla for atunci cand ne-am conectat la broker-ul curent
                     } catch (MqttException e) {
                         connected = false;
                         myBroker.setRunning(false);
+                        this.writeToLogFile("Conectare cu SUCCES la broker-ul " + myBroker.getIpBroker());
                         System.out.println("Conectarea la broker-ul " + myBroker.getIpBroker() + " a eșuat");
                         System.out.println("Se incearca conectarea la un alt broker");
                     }
@@ -88,6 +119,7 @@ public class Client implements MqttCallback {
             e.printStackTrace();
         }
     }
+
     // se apeleaza atunci cand scriem in consola 20
     public void disconnectFromBroker() throws MqttException {
         mqttClient.disconnect();
@@ -95,10 +127,16 @@ public class Client implements MqttCallback {
     }
 
 
-
     public void subscribe(String topic) throws MqttException {
         this.mqttClient.subscribe(topic);
         subscribedTopics.add(topic);
+        writeToLogFile("Abonare la topicul [" + topic + "]");
+    }
+
+    public void unsubscribe(String topic) throws MqttException {
+        this.mqttClient.unsubscribe(topic);
+        subscribedTopics.remove(topic);
+        writeToLogFile("Dezabonare de la topicul [" + topic + "]");
     }
 
     private void renewSubscriptions() throws MqttException {
@@ -113,7 +151,6 @@ public class Client implements MqttCallback {
         connected = false;
         System.out.println("\nConexiune pierdută cu broker-ul\n");
         startReconnectThread();
-
     }
 
     private void startReconnectThread() {
@@ -172,20 +209,34 @@ public class Client implements MqttCallback {
     public synchronized void processNews(String payload) {
         // Convertim JSON-ul în obiectul News
         News news = deserializeNews(payload);
+        if(news.getTopic().equals("stergere")){
+            this.stergeStire(news);
+        }else{
+            // orice alta stire care are alt topic se va adauga in lista de stiri
+            // Afișăm știrea pe ecran
+            System.out.println("\nReceived News:");
+            System.out.println("ID: " + news.getId());
+            System.out.println("Title: " + news.getTitle());
+            System.out.println("Content: " + news.getContent());
+            System.out.println("Topic: " + news.getTopic());
+            System.out.println();
 
-        // Afișăm știrea pe ecran
-        System.out.println("\nReceived News:");
-        System.out.println("ID: " + news.getId());
-        System.out.println("Title: " + news.getTitle());
-        System.out.println("Content: " + news.getContent());
-        System.out.println("Topic: " + news.getTopic());
-        System.out.println();
-
-        newsList.addNews(news);
+            writeToLogFile("S-a primit o stire cu topicul [" + news.getTopic() + "]");
+            newsList.addNews(news);
+        }
     }
-
-
-
+    public void stergeStire(News news){
+        // o stire cu topicul 'stergere' va avea la continut id-ul stirii care trebuie stearsa
+        String idForDelete = news.getContent();
+        int rezultat = newsList.deleteNewsById(idForDelete);//stergere din lista de stiri
+        if(rezultat == 1){
+            System.out.println("\nStirea cu id-ul " + idForDelete + " a fost stearsa cu succes");
+            // TODO scriere in fisier loguri
+        }else{
+            System.out.println("\nStirea cu id-ul " + idForDelete + " nu a fost gasita local");
+            // TODO scriere in fisier loguri
+        }
+    }
 
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
@@ -200,9 +251,8 @@ public class Client implements MqttCallback {
 
     /**
      * Functie care scrie in fisierul de log-uri un anumit mesaj
-     *
      * @param mesaj Mesajul care va fi scris in fisier-ul de log-uri
-     *              In fata mesajului se va scrie dateTime-ul in care s-a scris acel mesaj
+     * In fata mesajului se va scrie dateTime-ul in care s-a scris acel mesaj
      */
     public void writeToLogFile(String mesaj) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("./src/main/java/org/example/logs.txt", true))) {
@@ -267,8 +317,11 @@ public class Client implements MqttCallback {
 
         System.out.println("S-au trimis 1000 de știri pe topicul " + myTopic);
     }
-
-
+    public void sendNewsToDeleteNews(News newsForDelete){
+        String idStireDeSters = newsForDelete.getId();
+        News newsForAll = new News(this.id,"Stergere stire",idStireDeSters, "stergere");
+        publishNews(newsForAll);
+    }
 
     /**
      * Functie care publica o stire
@@ -285,12 +338,14 @@ public class Client implements MqttCallback {
         message.setQos(this.qos);
         try {
             mqttClient.publish(topic, message); // publicare
-           // processNews(payload);   daca vrei sa iti afiseze si tie stirea cand o trimiti chiar daca nu esti abonat
+            // processNews(payload);   daca vrei sa iti afiseze si tie stirea cand o trimiti chiar daca nu esti abonat
             System.out.println("Stire publicata cu succes " + i);
             i++;
             future.complete(null);
+            writeToLogFile("Publicare stire cu topicul [" + topic + "]");
         } catch (MqttException e) {
             System.out.println("Stirea nu a putut fi publicata");
+            writeToLogFile("Stirea cu topicul [" + topic + "] nu a putut fi publicata." + e.getMessage());
             future.completeExceptionally(e);
         }
         return future;
@@ -309,6 +364,7 @@ public class Client implements MqttCallback {
                                 "4. Vizualizare lista stiri\n" +
                                 "5. Vizualizare detalii stire\n" +
                                 "6. Adauga 1000 de stiri\n" +
+                                "7. Dezabonare topic\n" +
                                 "20. Exit\n"
                 );
                 System.out.print("Optiunea mea este: ");
@@ -348,6 +404,23 @@ public class Client implements MqttCallback {
                     case 6:
                         sendMultipleNews();
                         break;
+                    case 7:
+                        System.out.print("Introdu numele topicului la care doresti sa te dezabonezi(ex:crypto):");
+                        String myTopic = scanner.next();
+                        if (topics.existsTopic(myTopic)) {
+                            c.unsubscribe(myTopic);
+                            System.out.print("Dezabonare cu succes\n");
+                        } else {
+                            System.out.print("Nu exista acest topic\n");
+                        }
+                        break;
+                    case 8:
+                        System.out.print("Introdu indexul stirii pe care doresti sa il stergi:");
+                        String myStringIndex2 = scanner.next();
+                        int index2= Integer.parseInt(myStringIndex2);
+                        News newsForDelete = newsList.getNewsWithIndex(index2);// identificare stire dupa index
+                        c.sendNewsToDeleteNews(newsForDelete);
+                        break;
 
                     case 20:
                         try {
@@ -365,18 +438,59 @@ public class Client implements MqttCallback {
         });
     }
 
-    public static void main(String[] args) throws MqttException {
-        Client c = new Client();
-        Topics topics = new Topics();
-        topics.addNewTopic("test");
-        topics.addNewTopic("crypto");
-        topics.addNewTopic("ai");
-        topics.addNewTopic("blockchain");
-        topics.addNewTopic("vremea");
+    /**
+     * Functie pentru gestiunea fisierului "id.txt"
+     */
+    public void manageIdFile(){
+        String caleFisier = "./src/main/java/org/example/id.txt";
+        File fisier = new File(caleFisier);
+        try {
+            // Verifica dacă fișierul există
+            if (!fisier.exists()) {
+                // Încearcă să creeze fișierul
+                if (fisier.createNewFile()) {
+                    // se intra in acest if atunci cand se porneste programul prima data pe o anumita masina
+                    System.out.println("Fișierul id.txt a fost creat cu succes.");
+                    String idGenerat = this.generareID(caleFisier);
+                    this.setId(idGenerat);
+                } else {
+                    System.out.println("Nu s-a putut crea fișierul id.txt.");
+                }
+            } else {
+                System.out.println("Fișierul id.txt există deja.");
+                if (fisier.length() > 0) {
+                    // verificam daca exista ceva scris in fisier
+                    System.out.println("Fișierul id.txt nu este gol.");
+                    System.out.println("Fișierul id.txt contine urmatoarele linii:");
 
+                    FileReader fileReader = new FileReader(fisier);
+                    BufferedReader bufferedReader = new BufferedReader(fileReader);
 
-        //c.writeToLogFile("Acesta este un mesaj de test");
-        c.connectToBroker3();
-        c.startUserInputThread(c, topics);
+                    // Citirea și afișarea conținutului fișierului
+                    String linie;
+                    int contorLinie=0;
+                    while ((linie = bufferedReader.readLine()) != null) {
+                        System.out.println(linie);
+                        if(contorLinie==0){
+                            this.setId(linie);
+                        }
+                        contorLinie++;
+                        // atentie la mai multe linii
+                    }
+
+                    // Închiderea fluxului de citire
+                    bufferedReader.close();
+
+                } else {
+                    // fisierul este gol
+                    System.out.println("Fișierul este gol");
+                    // se genereaza id-ul
+                    String idGenerat = this.generareID(caleFisier);
+                    this.setId(idGenerat);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

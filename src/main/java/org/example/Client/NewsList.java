@@ -13,6 +13,15 @@ public class NewsList {
     public void addNews(News myNews) {
         newsList.add(myNews);
     }
+    public int deleteNewsById(String id){
+        for(News news: newsList){
+            if(news.getId().equals(id)){
+                newsList.remove(news);
+                return 1; // stire stearsa cu succes
+            }
+        }
+        return 0; // stirea cu acest topic nu exista
+    }
 
     public void getAllNewsByTopic(String topic) {
         for (News news : newsList) {
@@ -24,7 +33,7 @@ public class NewsList {
 
     public void printAllNews() {
         int i = 1;
-        for (News news : newsList) {// aici la afisarea tilului s-ar putea afisa doar un numar maxim de caractere (vezi titluri lungi)
+        for (News news : newsList) {
             System.out.println(i+". " + "["+news.getId() + "]. " +  ", Titlu:" +news.getTitle()+ " " + ", Topic:" + news.getTopic());
             i++;
         }
@@ -44,5 +53,15 @@ public class NewsList {
             }
             i++;
         }
+    }
+    public News getNewsWithIndex(int index){
+        int i = 0;
+        for (News news : newsList) {
+            if(i == index-1){
+                return news;
+            }
+            i++;
+        }
+        return null;
     }
 }
