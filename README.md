@@ -1,3 +1,5 @@
+# Instalare 
+1. 
 # Configurare broker Mosquitto
 1. Download Mosquitto: <https://mosquitto.org/download/>
 2. Se accesează folderul în care este instalat Mosquitto📂 (ex:"C:\Mosquitto")
@@ -30,3 +32,5 @@ log_timestamp_format %Y-%m-%d %H:%M:%S
 2.  Broker-ul se va porni la fel ca la punctul 5 de la configurarea broker-ului
    
 **Atentie!!!** Pentru un alt broker se va trece alta cale pentru fisierul de log-uri în fișierul de configurare asociat acelui broker.
+
+# Obligatoriu!!! După ce se face **git clone/Update Project** se va șterge conținutul fișierului "id.text"
