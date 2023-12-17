@@ -281,7 +281,7 @@ public class Client implements MqttCallback {
      * Componentele stirii vor fi citite de la tastatura
      * La sfarsit noua stire va fi publicata (trimisa catre broker)
      */
-    public void addNewsMenu() {
+    public void addNewsMenu(Topics topicsList) {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Introdu titlul stirii: ");
         String myTitle = scanner.nextLine();
@@ -289,8 +289,11 @@ public class Client implements MqttCallback {
         System.out.print("Introdu continutul stirii: ");
         String myContent = scanner.nextLine();
 
-        System.out.print("Introdu topicul stirii: ");
-        String myTopic = scanner.nextLine();
+        String myTopic;
+        do{
+            System.out.print("Introdu topicul stirii: ");
+            myTopic = scanner.nextLine();
+        }while(!topicsList.existsTopic(myTopic));
 
 
         News myNews = new News(this.id, myTitle, myContent, myTopic);
@@ -329,7 +332,7 @@ public class Client implements MqttCallback {
     public void sendNewsToDeleteNews(News newsForDelete) {
         String idStireDeSters = newsForDelete.getId();
         String idParts[] = idStireDeSters.split(":");
-        if (idParts[0] != this.id) {
+        if (!idParts[0].equals(this.id)) {
             System.out.println("Aceasta stire nu poate fi stearsa, deoarece nu este scrisa de dumneavoastra!");
         } else {
             News newsForAll = new News(this.id, "Stergere stire", idStireDeSters, "stergere");
@@ -426,7 +429,7 @@ public class Client implements MqttCallback {
                         break;
 
                     case 6:// adauga stire
-                        addNewsMenu();
+                        addNewsMenu(topics);
                         break;
 
                     case 7:// adauga 1000 de stiri
