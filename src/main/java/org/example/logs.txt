@@ -1,25 +1,24 @@
-
-[13-12-2023 08:38:25] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:21:17] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:21:18] Abonare la topicul [stergere]
-[13-12-2023 10:21:53] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:21:53] Abonare la topicul [stergere]
-[13-12-2023 10:22:18] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:22:18] Abonare la topicul [stergere]
-[13-12-2023 10:22:34] Abonare la topicul [test]
-[13-12-2023 10:23:08] Publicare stire cu topicul [vremea]
-[13-12-2023 10:24:50] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:24:50] Abonare la topicul [stergere]
-[13-12-2023 10:29:43] Abonare la topicul [test]
-[13-12-2023 10:30:29] Publicare stire cu topicul [vremea]
-[13-12-2023 10:31:35] Publicare stire cu topicul [stergere]
-[13-12-2023 10:41:07] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:41:07] Abonare la topicul [stergere]
-[13-12-2023 10:42:12] Abonare la topicul [test]
-[13-12-2023 10:43:28] Publicare stire cu topicul [test]
-[13-12-2023 10:43:28] S-a primit o stire cu topicul [test]
-[13-12-2023 10:44:20] Conectare cu SUCCES la broker-ul tcp://localhost:1883
-[13-12-2023 10:44:20] Abonare la topicul [stergere]
-[13-12-2023 10:45:52] Abonare la topicul [test]
-[13-12-2023 10:48:01] Publicare stire cu topicul [test]
-[13-12-2023 10:48:01] S-a primit o stire cu topicul [test]
+[14-12-2023 10:09:27] ***************Conectare cu SUCCES la broker-ul tcp://localhost:1883
+[14-12-2023 10:09:27] Abonare la topicul [stergere]
+[14-12-2023 10:10:07] Conectare cu SUCCES la broker-ul tcp://localhost:1883#############################
+[14-12-2023 10:10:07] Abonare la topicul [stergere]
+[14-12-2023 10:14:15] Conectare cu SUCCES la broker-ul tcp://localhost:1883 #############################
+[14-12-2023 10:14:15] Abonare la topicul [stergere]
+[14-12-2023 10:14:21] Conexiune pierdută cu broker-ul [tcp://localhost:1883]
+[17-12-2023 15:08:43] Conectare cu SUCCES la broker-ul tcp://localhost:1883 #############################
+[17-12-2023 15:08:43] Abonare la topicul [stergere]
+[17-12-2023 15:10:11] Abonare la topicul [crypto]
+[17-12-2023 15:10:21] Dezabonare de la topicul [crypto]
+[17-12-2023 15:12:22] Publicare stire cu topicul [vremea]
+[17-12-2023 15:14:35] Conectare cu SUCCES la broker-ul tcp://localhost:1883 #############################
+[17-12-2023 15:14:35] Abonare la topicul [stergere]
+[17-12-2023 15:14:51] Publicare stire cu topicul [test]
+[17-12-2023 15:16:41] Publicare stire cu topicul [stergere]
+[17-12-2023 15:16:41] 
+Stirea cu id-ul 499375956:0 a fost stearsa cu succes
+[17-12-2023 15:23:40] Conectare cu SUCCES la broker-ul tcp://localhost:1883 #############################
+[17-12-2023 15:23:40] Abonare la topicul [stergere]
+[17-12-2023 15:24:00] Publicare stire cu topicul [test]
+[17-12-2023 15:24:23] Publicare stire cu topicul [stergere]
+[17-12-2023 15:24:23] 
+Stirea cu id-ul 499375956:0 a fost stearsa cu succes
