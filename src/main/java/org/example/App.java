@@ -18,10 +18,7 @@ public class App
         topics.addNewTopic("blockchain");
         topics.addNewTopic("vremea");
 
-
-
         c.connectToBroker3();
-        //c.writeToLogFile("Acesta este un mesaj de test");
         c.startUserInputThread(c, topics);
     }
 }
