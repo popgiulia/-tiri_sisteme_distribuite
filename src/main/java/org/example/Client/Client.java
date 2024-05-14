@@ -30,8 +30,8 @@ public class Client implements MqttCallback {
 
     public Client() {
         brokerList = new ArrayList<>();
-        Broker broker1 = new Broker("tcp://localhost:1883", false);
-        Broker broker2 = new Broker("tcp://localhost:1884", false);
+        Broker broker1 = new Broker("tcp://192.168.37.140:1883", false);
+        Broker broker2 = new Broker("tcp://192.168.37.140:1884", false);
         brokerList.add(broker1);
         brokerList.add(broker2);
 
